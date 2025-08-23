@@ -19,7 +19,8 @@ def main(user_id: str, playlist_name: str, genre: str):
     else:
         print(f"No tracks found in playlist '{playlist_name}' matching genre '{genre}'.")
     track_uris = [track['uri'] for track in filtered_tracks]
-    genre_playlist = services.create_or_update_playlist(sp, user_id, playlist_name, track_uris)
+    genre_playlist_name = f"{genre.title()}"
+    genre_playlist = services.create_or_update_playlist(sp, user_id, genre_playlist_name, track_uris)
     
     if genre_playlist:
         print(f"Playlist '{genre_playlist['name']}' is ready with {len(track_uris)} tracks.")

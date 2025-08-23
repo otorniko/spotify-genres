@@ -7,3 +7,6 @@ __pycache__/
 
 # Other
 *.pyc
+
+#vscode settings
+.vscode/

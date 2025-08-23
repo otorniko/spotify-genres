@@ -9,7 +9,7 @@ def authenticate_spotify():
         client_id=config.SPOTIFY_CLIENT_ID,
         client_secret=config.SPOTIFY_CLIENT_SECRET,
         redirect_uri=config.SPOTIFY_REDIRECT_URI,
-        scope="playlist-read-private"
+        scope="playlist-read-private playlist-modify-public playlist-modify-private"
     )
     return spotipy.Spotify(auth_manager=sp_oauth)
 
