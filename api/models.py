@@ -7,4 +7,5 @@ class Track:
     id: str
     name: str
     artist: str
+    uri: str
     genre: Optional[str] = None

@@ -1,6 +1,5 @@
-# parsers.py
 from typing import Optional
-from .models import Track  # Use a relative import
+from models import Track
 
 def parse_spotify_playlist_item(item: dict) -> Optional[Track]:
     """
@@ -15,7 +14,8 @@ def parse_spotify_playlist_item(item: dict) -> Optional[Track]:
         return Track(
             id=track_data['id'],
             name=track_data['name'],
-            artist=track_data['artists'][0]['name']
+            artist=track_data['artists'][0]['name'],
+            uri=track_data['uri']
         )
     except (KeyError, IndexError):
         return None

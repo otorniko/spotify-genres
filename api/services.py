@@ -1,3 +1,4 @@
+import parsers
 import pylast
 from auth import authenticate_lastfm
 
@@ -35,14 +36,48 @@ def get_track_genre(artist_name: str, track_name: str) -> list:
     """
     lastfm_network = authenticate_lastfm()
     try:
-        track = lastfm_network.get_track(artist_name, track_name)
-        top_tags = track.get_top_tags(limit=5) # pylast returns a list of TopItem objects
-        
-        # If top_tags is empty, this will just return [] which is what we want
-        return top_tags
+        search_results = lastfm_network.search_for_track(artist_name, track_name)
+        search_page = search_results.get_next_page()
+
+        if not search_page:
+            return []
+
+        # Find the first track in the results that matches the artist's name
+        best_match = None
+        for track in search_page:
+            # Compare the artist names (case-insensitive)
+            if track.artist and track.artist.name and track.artist.name.lower() == artist_name.lower() and track.get_top_tags(limit=1) != []:
+                best_match = track
+                break # Stop as soon as we find the first correct match
+
+        # If we found a match, get its tags
+        if best_match:
+            top_tags = best_match.get_top_tags(limit=5)
+            if best_match.artist and best_match.artist.name:
+                print(f"Matched '{track_name}' to '{best_match.title}' by '{best_match.artist.name}' -> Tags: {[tag.item.name for tag in top_tags]}")
+            return top_tags
+        else:
+            # No track in the search results matched the artist
+            print(f"-> No direct match found for '{track_name}' by '{artist_name}'.")
+            return []
+
+
+    #    track = lastfm_network.get_track(
+    #        artist_name,
+    #        track_name
+    #    )
+    #    top_tags = track.get_top_tags(limit=5) # pylast returns a list of TopItem objects
+    #    print(f"Top tags for {track_name} by {artist_name}: {[tag.item.name for tag in top_tags]}")
+    #    # If top_tags is empty, this will just return [] which is what we want
+    #    if not top_tags:
+    #        search_track = lastfm_network.search_for_track(artist_name, track_name)
+    #        if search_track:
+    #            print(f"Did you mean: {search_track}?")
+    #    return top_tags
 
     except pylast.WSError:
         # Track not found on Last.fm, return an empty list
+        print(f"Track not found on Last.fm: {track_name} by {artist_name}")
         return []
     except Exception as e:
         # Handle other potential errors (network, etc.)
@@ -71,19 +106,18 @@ def filter_by_genre(sp, playlist_id: str, genre: str):
     Filters tracks in a Spotify playlist by a specified genre.
     """
 
-    tracks = get_playlist_tracks(sp, playlist_id)
-    if not tracks:
+    raw_tracks = get_playlist_tracks(sp, playlist_id)
+    if not raw_tracks:
         print("No tracks found in the playlist or an error occurred.")
         return []
 
     filtered_tracks = []
-    for item in tracks:
-        track = item['track']
-        artist_name = track['artists'][0]['name']
-        track_name = track['name']
-
+    tracks = [parsers.parse_spotify_playlist_item(track) for track in raw_tracks if track]
+    for track in tracks:
+        if not track:
+            continue
         # Fetch the genre tags for the track
-        top_tags = get_track_genre(artist_name, track_name)
+        top_tags = get_track_genre(track.artist, track.name)
         tag_names = [tag.item.name.lower() for tag in top_tags]
 
         if genre.lower() in tag_names:
@@ -106,8 +140,8 @@ def create_or_update_playlist(sp, user_id: str, playlist_name: str, track_uris: 
         print(f"Found existing playlist. Updating tracks...")
         
         # Note: playlist_replace_items can only handle 100 tracks at a time
-        # For simplicity, this example assumes len(track_uris) <= 100
-        # For a real app, you'd need to batch this call.
+        # For simplicity, this assumes len(track_uris) <= 100
+        # For real app, need to batch this call.
         sp.playlist_replace_items(playlist_id, track_uris)
         print("Playlist updated successfully.")
         
@@ -117,7 +151,7 @@ def create_or_update_playlist(sp, user_id: str, playlist_name: str, track_uris: 
         new_playlist = sp.user_playlist_create(
             user=user_id,
             name=playlist_name,
-            public=False, # Good practice to default to private
+            public=False,
             description=f"Filtered tracks from another playlist."
         )
         playlist_id = new_playlist['id']
